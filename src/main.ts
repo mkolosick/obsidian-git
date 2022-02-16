@@ -1,4 +1,4 @@
-import { debounce, Debouncer, EventRef, Notice, Plugin, TFile } from "obsidian";
+import { debounce, Debouncer, EventRef, Notice, Plugin, TFile, FileSystemAdapter } from "obsidian";
 import * as path from "path";
 import { PromiseQueue } from "src/promiseQueue";
 import { ObsidianGitSettingsTab } from "src/settings";
@@ -116,6 +116,15 @@ export default class ObsidianGit extends Plugin {
             id: "commit-specified-message",
             name: "Commit all changes with specific message",
             callback: () => this.promiseQueue.addTask(() => this.commit(false, true))
+        });
+
+        this.addCommand({
+          id: "commit-file",
+          name: "Commit current file",
+          callback: () => {
+            let current_file = this.app.workspace.getActiveFile();
+            this.promiseQueue.addTask(() => this.commitFile(current_file))
+          }
         });
 
         this.addCommand({
@@ -340,6 +349,36 @@ export default class ObsidianGit extends Plugin {
             }
         }
         this.setState(PluginState.idle);
+    }
+
+    async commitFile(currentFile: TFile | null): Promise<boolean> {
+        if (!await this.isAllInitialized()) return false;
+        if (!currentFile) return false;
+
+        const status = await this.gitManager.status();
+        const isCurrentFile = (statusResult) => statusResult.path === currentFile.path;
+        let toRestage = [];
+        if (status.changed.some(isCurrentFile)) {
+            toRestage = status.staged.map((statusResult) => statusResult.path)
+        } else if (status.staged.some(isCurrentFile)) {
+            toRestage = status.staged
+                .filter((statusResult) => statusResult.path !== currentFile.path)
+                .map((statusResult) => statusResult.path)
+        } else {
+            this.displayMessage("No changes to commit");
+            return true;
+        }
+        await this.gitManager.unstageAll();
+        await this.gitManager.stage(currentFile.path);
+        await this.gitManager.commit();
+        for (const [index, file] of toRestage.entries()) {
+          this.gitManager.stage(file);
+        }
+
+        // TODO: check errors
+        this.displayMessage(`Committed ${currentFile.path}`);
+        this.setState(PluginState.idle);
+        return true;
     }
 
     async commit(fromAutoBackup: boolean, requestCustomMessage: boolean = false): Promise<boolean> {

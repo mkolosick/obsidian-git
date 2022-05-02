@@ -2,6 +2,85 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.25.1](https://github.com/denolehov/obsidian-git/compare/1.25.0...1.25.1) (2022-04-22)
+
+
+### Bug Fixes
+
+* recursive submodules ([#217](https://github.com/denolehov/obsidian-git/issues/217)) ([98f566f](https://github.com/denolehov/obsidian-git/commit/98f566ffa29bb99dde44615f52fd352c099bd7f4))
+
+## [1.25.0](https://github.com/denolehov/obsidian-git/compare/1.24.1...1.25.0) (2022-04-07)
+
+
+### Features
+
+* custom git repository root ([#209](https://github.com/denolehov/obsidian-git/issues/209)) ([4157e42](https://github.com/denolehov/obsidian-git/commit/4157e42fa6cbd0f69d8ed03169c5bc836229d6d4))
+* offline mode ([6989ba4](https://github.com/denolehov/obsidian-git/commit/6989ba4fd7ce44bfac5c6f7479cf41ef8fcb5de3)), closes [#211](https://github.com/denolehov/obsidian-git/issues/211)
+
+
+### Bug Fixes
+
+* refresh source control view less frequently ([b90b1a5](https://github.com/denolehov/obsidian-git/commit/b90b1a5fa596142f42698727dd76cadd97e9bdc6))
+
+### [1.24.1](https://github.com/denolehov/obsidian-git/compare/1.24.0...1.24.1) (2022-03-23)
+
+
+### Bug Fixes
+
+* :adhesive_bandage: More specific CSS selectors for the diff-view ([c0c9a38](https://github.com/denolehov/obsidian-git/commit/c0c9a381f2c4c0527674e4e215e2418c71d68b73))
+* refresh source control view on first open ([6e75300](https://github.com/denolehov/obsidian-git/commit/6e75300424eb8d78f1a4c79caf830ce5d5fd1727))
+
+## [1.24.0](https://github.com/denolehov/obsidian-git/compare/1.23.0...1.24.0) (2022-03-18)
+
+
+### Features
+
+* add show, diff, log as api ([b3a72a4](https://github.com/denolehov/obsidian-git/commit/b3a72a46dfb917b28ca9af7848994668d1846b64))
+
+## [1.23.0](https://github.com/denolehov/obsidian-git/compare/1.22.0...1.23.0) (2022-03-18)
+
+
+### Features
+
+* reworked diff view handling ([be4856b](https://github.com/denolehov/obsidian-git/commit/be4856b0f3a6ecc7f4416f98d9eb05a992b61443)), closes [#202](https://github.com/denolehov/obsidian-git/issues/202) [#203](https://github.com/denolehov/obsidian-git/issues/203)
+
+
+### Bug Fixes
+
+* expand selection width on stagedFileComponent too ([daf8ac7](https://github.com/denolehov/obsidian-git/commit/daf8ac7e4279d6334fd36b4706c85c77d2e8dbbe))
+* highlight staged file on hover ([ef0d3e6](https://github.com/denolehov/obsidian-git/commit/ef0d3e6640712669e8d303d7cf1bff7dbdedbc7d))
+* refresh source control view on exception ([c1eee7b](https://github.com/denolehov/obsidian-git/commit/c1eee7b0d378677dff4da75fc3945b88c3ede7d3)), closes [#183](https://github.com/denolehov/obsidian-git/issues/183)
+
+## [1.22.0](https://github.com/denolehov/obsidian-git/compare/1.21.2...1.22.0) (2022-03-02)
+
+
+### Features
+
+* separate commit message for auto backup ([b59db5d](https://github.com/denolehov/obsidian-git/commit/b59db5dc816479fd6dad5d798d0979c49c8b8ccf)), closes [#197](https://github.com/denolehov/obsidian-git/issues/197)
+
+
+### Bug Fixes
+
+* automatically refresh source control ([9c2b063](https://github.com/denolehov/obsidian-git/commit/9c2b063584366226da876c9e5e6509868b6a01cd)), closes [#199](https://github.com/denolehov/obsidian-git/issues/199)
+* correct pull changes count ([6aead15](https://github.com/denolehov/obsidian-git/commit/6aead155571eda2499ef1ab6377236152124df96)), closes [#198](https://github.com/denolehov/obsidian-git/issues/198)
+
+### [1.21.2](https://github.com/denolehov/obsidian-git/compare/1.21.1...1.21.2) (2022-03-01)
+
+
+### Bug Fixes
+
+* catch git error on commit ([fe78ae3](https://github.com/denolehov/obsidian-git/commit/fe78ae364e5296a378a3d0844a3daa53b3d024c7))
+* stage files without glob pattern ([99b1f6c](https://github.com/denolehov/obsidian-git/commit/99b1f6c3d61e4b2fca274531fa98359af0a8c64e)), closes [#196](https://github.com/denolehov/obsidian-git/issues/196)
+
+### [1.21.1](https://github.com/denolehov/obsidian-git/compare/1.21.0...1.21.1) (2022-02-19)
+
+
+### Bug Fixes
+
+* better automatic backup/pull description ([10c3072](https://github.com/denolehov/obsidian-git/commit/10c307228da5c79cf62acfa2d6c90d2f519855a8)), closes [#181](https://github.com/denolehov/obsidian-git/issues/181)
+* catch more git errors ([153fd82](https://github.com/denolehov/obsidian-git/commit/153fd82d7467d6c58905fa77c4376b2e79594810))
+* stage filenames with leading '-' ([c06296e](https://github.com/denolehov/obsidian-git/commit/c06296e364962474299687e941fcdab8e03c9061)), closes [#184](https://github.com/denolehov/obsidian-git/issues/184)
+
 ### [1.21.0](https://github.com/denolehov/obsidian-git/compare/1.20.1...1.20.2) (2022-02-02)
 
 

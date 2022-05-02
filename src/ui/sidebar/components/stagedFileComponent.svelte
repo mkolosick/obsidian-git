@@ -1,6 +1,7 @@
 <script lang="ts">
   import { setIcon } from "obsidian";
   import { hoverPreview, openOrSwitch } from "obsidian-community-lib";
+  import { DIFF_VIEW_CONFIG } from "src/constants";
   import { GitManager } from "src/gitManager";
   import { FileStatusResult } from "src/types";
   import GitView from "../sidebarView";
@@ -42,28 +43,63 @@
     }
   }
 
+  function showDiff(event: MouseEvent) {
+    const leaf = view.app.workspace.activeLeaf;
+
+    if (
+      leaf &&
+      !leaf.getViewState().pinned &&
+      !(event.ctrlKey || event.getModifierState("Meta"))
+    ) {
+      leaf.setViewState({
+        type: DIFF_VIEW_CONFIG.type,
+        state: {
+          file: change.path,
+          staged: true,
+        },
+      });
+    } else {
+      view.app.workspace
+        .createLeafInParent(view.app.workspace.rootSplit, 0)
+        .setViewState({
+          type: DIFF_VIEW_CONFIG.type,
+          active: true,
+          state: {
+            file: change.path,
+            staged: true,
+          },
+        });
+    }
+  }
+
   function unstage() {
-    manager.unstage(formattedPath).then(() => {
+    manager.unstage(formattedPath).finally(() => {
       dispatchEvent(new CustomEvent("git-refresh"));
     });
   }
 </script>
 
-<main>
+<main on:mouseover={hover} on:focus on:click|self={showDiff}>
   <span
     class="path"
-    on:mouseover={hover}
-    on:focus
-    on:click={open}
     aria-label-position={side}
     aria-label={change.path.split("/").last() != change.path ? change.path : ""}
+    on:click={showDiff}
   >
     {formattedPath.split("/").last().replace(".md", "")}
   </span>
   <div class="tools">
     <div class="buttons">
+      {#if view.app.vault.getAbstractFileByPath(change.path)}
+        <div
+          data-icon="go-to-file"
+          aria-label="Open File"
+          bind:this={buttons[1]}
+          on:click={open}
+        />
+      {/if}
       <div
-        data-icon="feather-minus"
+        data-icon="minus"
         aria-label="Unstage"
         bind:this={buttons[0]}
         on:click={unstage}
@@ -75,6 +111,7 @@
 
 <style lang="scss">
   main {
+    cursor: pointer;
     background-color: var(--background-secondary);
     border-radius: 4px;
     width: 98%;
@@ -89,11 +126,11 @@
       max-width: 75%;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
 
-      &:hover {
-        color: var(--text-normal);
-        transition: all 200ms;
-      }
+    &:hover .path {
+      color: var(--text-normal);
+      transition: all 200ms;
     }
 
     .tools {

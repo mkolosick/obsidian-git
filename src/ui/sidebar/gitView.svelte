@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { debounce, EventRef, setIcon } from "obsidian";
+  import { debounce, EventRef, MetadataCache, setIcon } from "obsidian";
   import ObsidianGit from "src/main";
   import { Status, TreeItem } from "src/types";
   import { onDestroy } from "svelte";
@@ -19,54 +19,77 @@
   let changesOpen = true;
   let stagedOpen = true;
   let loading = true;
-  const debRefresh = debounce(() => refresh(), 300000);
-  //Refresh every ten minutes
-  const interval = window.setInterval(refresh, 600000);
+  const debRefresh = debounce(
+    () => {
+      if (plugin.settings.refreshSourceControl) {
+        refresh();
+      }
+    },
+    7000,
+    true
+  );
+
   let showTree = plugin.settings.treeStructure;
   let layoutBtn: HTMLElement;
   $: {
     if (layoutBtn) {
       layoutBtn.empty();
-      setIcon(layoutBtn, showTree ? "feather-list" : "feather-folder", 16);
+      setIcon(layoutBtn, showTree ? "list" : "folder", 16);
     }
   }
 
-  let event: EventRef;
+  let modifyEvent: EventRef;
+  let deleteEvent: EventRef;
+  let createEvent: EventRef;
+  let renameEvent: EventRef;
+
+  addEventListener("git-refresh", refresh);
   //This should go in the onMount callback, for some reason it doesn't fire though
   //setImmediate's callback will execute after the current event loop finishes.
   plugin.app.workspace.onLayoutReady(() =>
     setImmediate(() => {
       buttons.forEach((btn) => setIcon(btn, btn.getAttr("data-icon"), 16));
-      setIcon(layoutBtn, showTree ? "feather-list" : "feather-folder", 16);
+      setIcon(layoutBtn, showTree ? "list" : "folder", 16);
 
-      refresh();
-
-      event = plugin.app.metadataCache.on("resolved", () => {
+      modifyEvent = plugin.app.vault.on("modify", () => {
+        debRefresh();
+      });
+      deleteEvent = plugin.app.vault.on("delete", () => {
+        debRefresh();
+      });
+      createEvent = plugin.app.vault.on("create", () => {
+        debRefresh();
+      });
+      renameEvent = plugin.app.vault.on("rename", () => {
         debRefresh();
       });
 
-      plugin.registerInterval(interval);
-      plugin.registerEvent(event);
+      plugin.registerEvent(modifyEvent);
+      plugin.registerEvent(deleteEvent);
+      plugin.registerEvent(createEvent);
+      plugin.registerEvent(renameEvent);
     })
   );
+
   onDestroy(() => {
-    window.clearInterval(interval);
-    plugin.app.metadataCache.offref(event);
+    plugin.app.metadataCache.offref(modifyEvent);
+    plugin.app.metadataCache.offref(deleteEvent);
+    plugin.app.metadataCache.offref(createEvent);
+    plugin.app.metadataCache.offref(renameEvent);
+    removeEventListener("git-refresh", refresh);
   });
 
   function commit() {
     loading = true;
-    plugin.gitManager.commit(commitMessage).then(() => {
-      if (commitMessage !== plugin.settings.commitMessage) {
-        commitMessage = "";
-      }
-      refresh();
-    });
+    plugin.gitManager
+      .commit(commitMessage)
+      .then(() => {
+        if (commitMessage !== plugin.settings.commitMessage) {
+          commitMessage = "";
+        }
+      })
+      .finally(refresh);
   }
-
-  addEventListener("git-refresh", (_) => {
-    refresh();
-  });
 
   async function refresh() {
     loading = true;
@@ -87,30 +110,22 @@
 
   function stageAll() {
     loading = true;
-    plugin.gitManager.stageAll().then(() => {
-      refresh();
-    });
+    plugin.gitManager.stageAll().finally(refresh);
   }
   function unstageAll() {
     loading = true;
-    plugin.gitManager.unstageAll().then(() => {
-      refresh();
-    });
+    plugin.gitManager.unstageAll().finally(refresh);
   }
   function push() {
     loading = true;
 
     if (ready) {
-      plugin.push().then((pushedFiles) => {
-        refresh();
-      });
+      plugin.push().finally(refresh);
     }
   }
   function pull() {
     loading = true;
-    plugin.pullChangesFromRemote().then(() => {
-      refresh();
-    });
+    plugin.pullChangesFromRemote().finally(refresh);
   }
 </script>
 
@@ -119,7 +134,7 @@
     <div class="group">
       <div
         id="commit-btn"
-        data-icon="feather-check"
+        data-icon="check"
         class="nav-action-button"
         aria-label="Commit"
         bind:this={buttons[0]}
@@ -128,7 +143,7 @@
       <div
         id="stage-all"
         class="nav-action-button"
-        data-icon="feather-plus-circle"
+        data-icon="plus-circle"
         aria-label="Stage all"
         bind:this={buttons[1]}
         on:click={stageAll}
@@ -136,7 +151,7 @@
       <div
         id="unstage-all"
         class="nav-action-button"
-        data-icon="feather-minus-circle"
+        data-icon="minus-circle"
         aria-label="Unstage all"
         bind:this={buttons[2]}
         on:click={unstageAll}
@@ -144,7 +159,7 @@
       <div
         id="push"
         class="nav-action-button"
-        data-icon="feather-upload"
+        data-icon="upload"
         aria-label="Push"
         bind:this={buttons[3]}
         on:click={push}
@@ -152,7 +167,7 @@
       <div
         id="pull"
         class="nav-action-button"
-        data-icon="feather-download"
+        data-icon="download"
         aria-label="Pull"
         bind:this={buttons[4]}
         on:click={pull}
@@ -173,7 +188,7 @@
       id="refresh"
       class="nav-action-button"
       class:loading
-      data-icon="feather-refresh-cw"
+      data-icon="refresh-cw"
       aria-label="Refresh"
       bind:this={buttons[6]}
       on:click={refresh}

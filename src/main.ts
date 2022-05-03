@@ -380,7 +380,8 @@ export default class ObsidianGit extends Plugin {
         }
         await this.gitManager.unstageAll();
         await this.gitManager.stage(currentFile.path);
-        await this.gitManager.commit();
+        let commitMessage = this.settings.commitMessage;
+        await this.gitManager.commit(commitMessage);
         for (const [index, file] of toRestage.entries()) {
           this.gitManager.stage(file);
         }

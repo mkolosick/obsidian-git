@@ -125,7 +125,8 @@ export default class ObsidianGit extends Plugin {
           name: "Commit current file",
           callback: () => {
             let current_file = this.app.workspace.getActiveFile();
-            this.promiseQueue.addTask(() => this.commitFile(current_file))
+            let current_view = this.app.workspace.getActiveViewOfType(FileView);
+            this.promiseQueue.addTask(() => this.commitFile(current_view, current_file))
           }
         });
 
@@ -361,8 +362,12 @@ export default class ObsidianGit extends Plugin {
         this.setState(PluginState.idle);
     }
 
-    async commitFile(currentFile: TFile | null): Promise<boolean> {
+    async commitFile(currentView: FileView | null, currentFile: TFile | null): Promise<boolean> {
         if (!await this.isAllInitialized()) return false;
+        if (currentView) {
+            currentView.save();
+        }
+
         if (!currentFile) return false;
 
         const status = await this.gitManager.status();

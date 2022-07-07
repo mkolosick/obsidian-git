@@ -9,7 +9,7 @@ import { DEFAULT_SETTINGS, DIFF_VIEW_CONFIG, GIT_VIEW_CONFIG } from "./constants
 import { GitManager } from "./gitManager";
 import { openHistoryInGitHub, openLineInGitHub } from "./openInGitHub";
 import { SimpleGit } from "./simpleGit";
-import { ObsidianGitSettings, PluginState } from "./types";
+import { ObsidianGitSettings, PluginState, Status } from "./types";
 import DiffView from "./ui/diff/diffView";
 import { GeneralModal } from "./ui/modals/generalModal";
 import GitView from "./ui/sidebar/sidebarView";
@@ -20,6 +20,7 @@ export default class ObsidianGit extends Plugin {
     statusBar: StatusBar;
     state: PluginState;
     timeoutIDBackup: number;
+    timeoutIDPush: number;
     timeoutIDPull: number;
     lastUpdate: number;
     gitReady = false;
@@ -28,17 +29,68 @@ export default class ObsidianGit extends Plugin {
     autoBackupDebouncer: Debouncer<undefined>;
     onFileModifyEventRef: EventRef;
     offlineMode: boolean = false;
+    loading = false;
+    cachedStatus: Status | undefined;
+    modifyEvent: EventRef;
+    deleteEvent: EventRef;
+    createEvent: EventRef;
+    renameEvent: EventRef;
 
-    setState(state: PluginState) {
+    debRefresh = debounce(
+        () => {
+            if (this.settings.refreshSourceControl) {
+                this.refresh();
+            }
+        },
+        7000,
+        true
+    );
+
+    setState(state: PluginState): void {
         this.state = state;
         this.statusBar?.display();
     }
 
+    async updateCachedStatus(): Promise<Status> {
+        this.cachedStatus = await this.gitManager.status();
+        return this.cachedStatus;
+    }
+
+    async refresh() {
+        const gitView = this.app.workspace.getLeavesOfType(GIT_VIEW_CONFIG.type);
+
+        if (this.settings.changedFilesInStatusBar || gitView.length > 0) {
+            this.loading = true;
+            dispatchEvent(new CustomEvent("git-view-refresh"));
+
+            await this.updateCachedStatus();
+            this.loading = false;
+            dispatchEvent(new CustomEvent("git-view-refresh"));
+        }
+    }
 
     async onload() {
         console.log('loading ' + this.manifest.name + " plugin");
         await this.loadSettings();
         this.migrateSettings();
+        this.modifyEvent = this.app.vault.on("modify", () => {
+            this.debRefresh();
+        });
+        this.deleteEvent = this.app.vault.on("delete", () => {
+            this.debRefresh();
+        });
+        this.createEvent = this.app.vault.on("create", () => {
+            this.debRefresh();
+        });
+        this.renameEvent = this.app.vault.on("rename", () => {
+            this.debRefresh();
+        });
+
+        this.registerEvent(this.modifyEvent);
+        this.registerEvent(this.deleteEvent);
+        this.registerEvent(this.createEvent);
+        this.registerEvent(this.renameEvent);
+        addEventListener("git-refresh", this.refresh.bind(this));
 
         this.registerView(GIT_VIEW_CONFIG.type, (leaf) => {
             return new GitView(leaf, this);
@@ -203,6 +255,12 @@ export default class ObsidianGit extends Plugin {
         this.app.workspace.detachLeavesOfType(DIFF_VIEW_CONFIG.type);
         this.clearAutoPull();
         this.clearAutoBackup();
+        removeEventListener("git-refresh", this.refresh.bind(this));
+        this.app.metadataCache.offref(this.modifyEvent);
+        this.app.metadataCache.offref(this.deleteEvent);
+        this.app.metadataCache.offref(this.createEvent);
+        this.app.metadataCache.offref(this.renameEvent);
+
         console.log('unloading ' + this.manifest.name + " plugin");
     }
 
@@ -214,24 +272,30 @@ export default class ObsidianGit extends Plugin {
         await this.saveData(this.settings);
     }
 
-    async saveLastAuto(date: Date, mode: "backup" | "pull") {
+    async saveLastAuto(date: Date, mode: "backup" | "pull" | "push") {
         if (mode === "backup") {
             window.localStorage.setItem(this.manifest.id + ":lastAutoBackup", date.toString());
         } else if (mode === "pull") {
             window.localStorage.setItem(this.manifest.id + ":lastAutoPull", date.toString());
+        } else if (mode === "push") {
+            window.localStorage.setItem(this.manifest.id + ":lastAutoPush", date.toString());
         }
     }
 
-    async loadLastAuto(): Promise<{ "backup": Date, "pull": Date; }> {
+    async loadLastAuto(): Promise<{ "backup": Date, "pull": Date; "push": Date; }> {
         return {
             "backup": new Date(window.localStorage.getItem(this.manifest.id + ":lastAutoBackup") ?? ""),
-            "pull": new Date(window.localStorage.getItem(this.manifest.id + ":lastAutoPull") ?? "")
+            "pull": new Date(window.localStorage.getItem(this.manifest.id + ":lastAutoPull") ?? ""),
+            "push": new Date(window.localStorage.getItem(this.manifest.id + ":lastAutoPush") ?? ""),
         };
     }
 
     async init(): Promise<void> {
         try {
             this.gitManager = new SimpleGit(this);
+            if (this.gitManager instanceof SimpleGit) {
+                await this.gitManager.setGitInstance();
+            }
 
             const result = await this.gitManager.checkRequirements();
             switch (result) {
@@ -256,6 +320,12 @@ export default class ObsidianGit extends Plugin {
 
                         const diff = this.settings.autoSaveInterval - (Math.round(((now.getTime() - lastAutos.backup.getTime()) / 1000) / 60));
                         this.startAutoBackup(diff <= 0 ? 0 : diff);
+                    }
+                    if (this.settings.differentIntervalCommitAndPush && this.settings.autoPushInterval > 0) {
+                        const now = new Date();
+
+                        const diff = this.settings.autoPushInterval - (Math.round(((now.getTime() - lastAutos.push.getTime()) / 1000) / 60));
+                        this.startAutoPush(diff <= 0 ? 0 : diff);
                     }
                     if (this.settings.autoPullInterval > 0) {
                         const now = new Date();
@@ -318,6 +388,7 @@ export default class ObsidianGit extends Plugin {
             const status = await this.gitManager.status();
             if (status.conflicted.length > 0) {
                 this.displayError(`You have ${status.conflicted.length} conflict ${status.conflicted.length > 1 ? 'files' : 'file'}`);
+                this.handleConflict(status.conflicted);
             }
         }
 
@@ -329,22 +400,6 @@ export default class ObsidianGit extends Plugin {
     async createBackup(fromAutoBackup: boolean, requestCustomMessage: boolean = false): Promise<void> {
         if (!await this.isAllInitialized()) return;
 
-        if (!fromAutoBackup) {
-            const file = this.app.vault.getAbstractFileByPath(this.conflictOutputFile);
-            await this.app.vault.delete(file);
-        }
-        if (this.gitManager instanceof SimpleGit) {
-            const status = await this.gitManager.status();
-
-            // check for conflict files on auto backup
-            if (fromAutoBackup && status.conflicted.length > 0) {
-                this.setState(PluginState.idle);
-                this.displayError(`Did not commit, because you have ${status.conflicted.length} conflict ${status.conflicted.length > 1 ? 'files' : 'file'}. Please resolve them and commit per command.`);
-                this.handleConflict(status.conflicted);
-                return;
-            }
-        }
-
         if (!(await this.commit(fromAutoBackup, requestCustomMessage))) return;
 
         if (!this.settings.disablePush) {
@@ -354,7 +409,7 @@ export default class ObsidianGit extends Plugin {
                     await this.pull();
                 }
 
-                if (!(await this.push())) return;
+                await this.push();
             } else {
                 this.displayMessage("No changes to push");
             }
@@ -400,7 +455,23 @@ export default class ObsidianGit extends Plugin {
     async commit(fromAutoBackup: boolean, requestCustomMessage: boolean = false): Promise<boolean> {
         if (!await this.isAllInitialized()) return false;
 
-        const changedFiles = (await this.gitManager.status()).changed;
+        const file = this.app.vault.getAbstractFileByPath(this.conflictOutputFile);
+
+        if (file) await this.app.vault.delete(file);
+        let status;
+
+        if (this.gitManager instanceof SimpleGit) {
+            status = (await this.gitManager.status()) as Status & { conflicted: string[]; };
+            // check for conflict files on auto backup
+            if (fromAutoBackup && status.conflicted.length > 0) {
+                this.displayError(`Did not commit, because you have ${status.conflicted.length} conflict ${status.conflicted.length > 1 ? 'files' : 'file'}. Please resolve them and commit per command.`);
+                this.handleConflict(status.conflicted);
+                return;
+            }
+        } else {
+            status = await this.gitManager.status();
+        }
+        const changedFiles = status.changed;
 
         if (changedFiles.length !== 0) {
             let commitMessage = fromAutoBackup ? this.settings.autoCommitMessage : this.settings.commitMessage;
@@ -433,6 +504,11 @@ export default class ObsidianGit extends Plugin {
         if (!this.remotesAreSet()) {
             return false;
         }
+
+        const file = this.app.vault.getAbstractFileByPath(this.conflictOutputFile);
+
+        if (file) await this.app.vault.delete(file);
+
         // Refresh because of pull
         let status: any;
         if (this.gitManager instanceof SimpleGit && (status = await this.gitManager.status()).conflicted.length > 0) {
@@ -442,7 +518,11 @@ export default class ObsidianGit extends Plugin {
         } else {
             const pushedFiles = await this.gitManager.push();
             this.lastUpdate = Date.now();
-            this.displayMessage(`Pushed ${pushedFiles} ${pushedFiles > 1 ? 'files' : 'file'} to remote`);
+            if (pushedFiles > 0) {
+                this.displayMessage(`Pushed ${pushedFiles} ${pushedFiles > 1 ? 'files' : 'file'} to remote`);
+            } else {
+                this.displayMessage(`No changes to push`);
+            }
             this.offlineMode = false;
             this.setState(PluginState.idle);
 
@@ -493,8 +573,15 @@ export default class ObsidianGit extends Plugin {
         }
     }
 
-    doAutoBackup() {
-        this.promiseQueue.addTask(() => this.createBackup(true));
+    // This is used for both auto backup and commit
+    doAutoBackup(): void {
+        this.promiseQueue.addTask(() => {
+            if (this.settings.differentIntervalCommitAndPush) {
+                return this.commit(true);
+            } else {
+                return this.createBackup(true);
+            }
+        });
         this.saveLastAuto(new Date(), "backup");
         this.saveSettings();
         this.startAutoBackup();
@@ -509,6 +596,18 @@ export default class ObsidianGit extends Plugin {
                 this.startAutoPull();
             },
             (minutes ?? this.settings.autoPullInterval) * 60000
+        );
+    }
+
+    startAutoPush(minutes?: number) {
+        this.timeoutIDPush = window.setTimeout(
+            () => {
+                this.promiseQueue.addTask(() => this.push());
+                this.saveLastAuto(new Date(), "push");
+                this.saveSettings();
+                this.startAutoPush();
+            },
+            (minutes ?? this.settings.autoPushInterval) * 60000
         );
     }
 
@@ -532,6 +631,15 @@ export default class ObsidianGit extends Plugin {
         if (this.timeoutIDPull) {
             window.clearTimeout(this.timeoutIDPull);
             this.timeoutIDPull = undefined;
+            return true;
+        }
+        return false;
+    }
+
+    clearAutoPush(): boolean {
+        if (this.timeoutIDPush) {
+            window.clearTimeout(this.timeoutIDPush);
+            this.timeoutIDPush = undefined;
             return true;
         }
         return false;

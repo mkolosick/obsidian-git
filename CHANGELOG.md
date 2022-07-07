@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.26.1](https://github.com/denolehov/obsidian-git/compare/1.26.0...1.26.1) (2022-06-09)
+
+
+### Bug Fixes
+
+* open file with custom base path ([8a11666](https://github.com/denolehov/obsidian-git/commit/8a11666e6d430ed3fba952a584b9f8af6cc462fe))
+* use correct path with custom base path ([0d86e68](https://github.com/denolehov/obsidian-git/commit/0d86e6872fa16c809f7bf71f05e344acaf31008d))
+
+## [1.26.0](https://github.com/denolehov/obsidian-git/compare/1.25.3...1.26.0) (2022-06-09)
+
+
+### Features
+
+* different intervals for commit and push ([59367aa](https://github.com/denolehov/obsidian-git/commit/59367aa3d0fde912cf393f5e48989758f44b82e0)), closes [#106](https://github.com/denolehov/obsidian-git/issues/106)
+* show changes files count in status bar ([d091694](https://github.com/denolehov/obsidian-git/commit/d0916947546aad84f506f39f9f754a6b3c33f42c)), closes [#243](https://github.com/denolehov/obsidian-git/issues/243)
+
+
+### Bug Fixes
+
+* handle merge conflict better ([101aff9](https://github.com/denolehov/obsidian-git/commit/101aff991ecaecd57f004dd7bfd1811866b755e5))
+
+### [1.25.3](https://github.com/denolehov/obsidian-git/compare/1.25.2...1.25.3) (2022-05-14)
+
+
+### Bug Fixes
+
+* show renamed files ([b76c783](https://github.com/denolehov/obsidian-git/commit/b76c78332978dbbf7045f94295ed3228de7132a9)), closes [#226](https://github.com/denolehov/obsidian-git/issues/226)
+
+### [1.25.2](https://github.com/denolehov/obsidian-git/compare/1.25.1...1.25.2) (2022-05-07)
+
+
+### Bug Fixes
+
+* improve base path description ([8ee3a63](https://github.com/denolehov/obsidian-git/commit/8ee3a63fff91d4c9fd61cb9da73cc738026b8af1))
+
 ### [1.25.1](https://github.com/denolehov/obsidian-git/compare/1.25.0...1.25.1) (2022-04-22)
 
 

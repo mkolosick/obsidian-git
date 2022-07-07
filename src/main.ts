@@ -1,4 +1,4 @@
-import { debounce, Debouncer, EventRef, Notice, Plugin, TFile, FileSystemAdapter } from "obsidian";
+import { debounce, Debouncer, EventRef, Notice, Plugin, TFile, FileView, FileSystemAdapter } from "obsidian";
 import * as path from "path";
 import { PromiseQueue } from "src/promiseQueue";
 import { ObsidianGitSettingsTab } from "src/settings";

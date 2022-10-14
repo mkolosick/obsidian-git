@@ -1,3 +1,4 @@
+import { Platform } from "obsidian";
 import { ObsidianGitSettings } from "./types";
 
 export const DEFAULT_SETTINGS: ObsidianGitSettings = {
@@ -15,14 +16,17 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     showStatusBar: true,
     updateSubmodules: false,
     syncMethod: 'merge',
-    gitPath: "",
     customMessageOnAutoBackup: false,
     autoBackupAfterFileChange: false,
     treeStructure: false,
-    refreshSourceControl: true,
+    refreshSourceControl: Platform.isDesktopApp,
     basePath: "",
     differentIntervalCommitAndPush: false,
     changedFilesInStatusBar: false,
+    username: "",
+    showedMobileNotice: false,
+    refreshSourceControlTimer: 7000,
+    showBranchStatusBar: true
 };
 
 export const GIT_VIEW_CONFIG = {

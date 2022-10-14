@@ -43,6 +43,10 @@ body:
       - Windows
       - Linux
       - macOS
+      - Android
+      - iOS
+  validations:
+    required: true
   validations:
     required: true
 - type: input
